@@ -1,5 +1,8 @@
 #include "ydsjson.h"
 
+#define ISDIGIT(ch)         ((ch) >= '0' && (ch) <= '9')
+#define ISDIGIT1TO9(ch)     (((ch) >= '1' && (ch) <= '9'))
+
 /**
  * 解析空白部分
  * 直接跳过
@@ -28,11 +31,46 @@ int YdsJson::parse_literial(const char* literal, yds_type type) {
 }
 
 /**
+ * 解析数字
+*/
+int YdsJson::parse_number() {
+    const char* p = context_.get_context();
+    if (*p == '-') p++;
+    if (*p == '0') p++;
+    else {
+        if (!ISDIGIT1TO9(*p)) return YDS_PARSE_INVALID_VALUE;
+        for (p++; ISDIGIT(*p); p++);
+    }
+    if (*p == '.') {
+        p++;
+        if (!ISDIGIT(*p)) return YDS_PARSE_INVALID_VALUE;
+        for (p++; ISDIGIT(*p); p++);
+    }
+    if (*p == 'e' || *p == 'E') {
+        p++;
+        if (*p == '+' || *p == '-') p++;
+        if (!ISDIGIT(*p)) return YDS_PARSE_INVALID_VALUE;
+        for (p++; ISDIGIT(*p); p++);
+    }
+
+    errno = 0;
+    value_->set_number(strtod(context_.get_context(), NULL));
+    if (errno == ERANGE && 
+        (value_->get_number() == HUGE_VAL || value_->get_number() == -HUGE_VAL)) {
+        return YDS_PARSE_NUMBER_TOO_BIG;
+    }
+    value_->set_type(YDS_NUMBER);
+    context_.set_context(p);
+    return YDS_PARSE_OK;
+}
+
+/**
  * 根据类型解析数据
 */
 int YdsJson::parse_value() {
     value_->set_type(YDS_NULL);
     const char* p = context_.get_context();
+
     switch (*p) {
         case 'n':
             return parse_literial("null", YDS_NULL);
@@ -43,11 +81,11 @@ int YdsJson::parse_value() {
         case 'f':
             return parse_literial("false", YDS_FALSE);
 
+        default:
+            return parse_number();
+
         case '\0': 
             return YDS_PARSE_EXPECT_VALUE;
-
-        default:
-            return YDS_PARSE_INVALID_VALUE;
     }
 }
 

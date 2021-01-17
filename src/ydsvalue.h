@@ -25,7 +25,10 @@ public:
     ~YdsValue() = default;
 
     yds_type get_type() const { return type_; }
+    double get_number() const { return num_; }
+    
     void set_type(yds_type type) { type_ = type; }
+    void set_number(double number) { num_ = number; }
 
 private:
     /*使用联合体节省内存*/

@@ -4,6 +4,8 @@
 #include <stddef.h>     /*size_t*/
 #include <string>
 #include <assert.h>     /*assert()*/
+#include <errno.h>      /*errno*/
+#include <math.h>       /*HUGE_VAL*/
 #include "ydsvalue.h"
 #include "ydscontext.h"
 /**
@@ -14,6 +16,7 @@ enum {
     YDS_PARSE_EXPECT_VALUE,         /*全是空白*/
     YDS_PARSE_INVALID_VALUE,        /*无效的值*/
     YDS_PARSE_ROOT_NOT_SINGULAR,    /*解析之后还有未解析完的数据*/
+    YDS_PARSE_NUMBER_TOO_BIG
 };
 
 class YdsJson {
@@ -25,6 +28,7 @@ private:
     int parse_value();
     void parse_whitespace();
     int parse_literial(const char* literal, yds_type type);     /*解析字面量*/
+    int parse_number();
 
 private:
     YdsValue* value_;        /*保存解析结果的数据结构*/
