@@ -18,7 +18,7 @@ enum {
 
 class YdsJson {
 public:
-    int parse(const char* json);
+    int parse(YdsValue* value, const char* json);
     //int parse(const std::string& json);
 
 private:
@@ -27,7 +27,7 @@ private:
     int parse_literial(const char* literal, yds_type type);     /*解析字面量*/
 
 private:
-    YdsValue value_;        /*保存解析结果的数据结构*/
+    YdsValue* value_;        /*保存解析结果的数据结构*/
     YdsContext context_;    /*解析过程的缓存空间*/
 };
 

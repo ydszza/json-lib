@@ -1,10 +1,9 @@
-cmake_minimum_required (VERSION 2.6)
-project (leptjson_test C)
+cmake_minimum_required (VERSION 3.0)
 
-if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ansi -pedantic -Wall")
-endif()
+project (ydsjson)
 
-add_library(leptjson leptjson.c)
-add_executable(leptjson_test test.c)
-target_link_libraries(leptjson_test leptjson)
+aux_source_directory(src SRC_LIST1)
+aux_source_directory(test SRC_LIST2)
+
+add_executable(ydsjson_test ${SRC_LIST1} ${SRC_LIST2})
+set (EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})

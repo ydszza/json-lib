@@ -23,7 +23,7 @@ int YdsJson::parse_literial(const char* literal, yds_type type) {
     }
     
     context_.set_context(p+i);
-    value_.set_type(type);
+    value_->set_type(type);
     return YDS_PARSE_OK;
 }
 
@@ -31,6 +31,7 @@ int YdsJson::parse_literial(const char* literal, yds_type type) {
  * 根据类型解析数据
 */
 int YdsJson::parse_value() {
+    value_->set_type(YDS_NULL);
     const char* p = context_.get_context();
     switch (*p) {
         case 'n':
@@ -53,15 +54,16 @@ int YdsJson::parse_value() {
 /**
  * 解析json数据
 */
-int YdsJson::parse(const char* json) {
-    assert(json);
+int YdsJson::parse(YdsValue* value, const char* json) {
+    assert(json && value);
     context_.set_context(json);
+    value_ = value;
     
     int ret;
     parse_whitespace();
     if ((ret = parse_value()) == YDS_PARSE_OK) {    //解析成功
         parse_whitespace();
-        if (context_.get_context() != '\0') { //解析成功但不是末尾
+        if (*context_.get_context() != '\0') { //解析成功但不是末尾
             return YDS_PARSE_ROOT_NOT_SINGULAR;
         }
     }
