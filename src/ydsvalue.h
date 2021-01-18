@@ -25,16 +25,38 @@ typedef enum {
 class YdsValue {
 public:
     YdsValue() : type_(YDS_NULL) {}
-    ~YdsValue() { if (type_ == YDS_STRING && s_.s) free(s_.s); }
+    ~YdsValue() { 
+        if (type_ == YDS_STRING && s_.s) 
+            free(s_.s); 
+    }
 
     yds_type get_type() const { return type_; }
-    void set_type(yds_type type) { type_ = type; }
+    void set_type(yds_type type) { 
+        if (type_ == YDS_STRING && s_.s) 
+            free(s_.s);  
+        type_ = type; 
+    }
 
-    bool get_boolean() const { assert(type_ == YDS_TRUE || type_ == YDS_FALSE); return type_ == YDS_TRUE; }
-    void set_boolean(bool value) { type_ = value ? YDS_TRUE : YDS_FALSE; }
+    bool get_boolean() const { 
+        assert(type_ == YDS_TRUE || type_ == YDS_FALSE); 
+        return type_ == YDS_TRUE; 
+    }
+    void set_boolean(bool value) { 
+        if (type_ == YDS_STRING && s_.s) 
+            free(s_.s);
+        type_ = value ? YDS_TRUE : YDS_FALSE; 
+    }
 
-    double get_number() const { assert(type_ == YDS_NUMBER); return num_; }
-    void set_number(double number) { if (type_ == YDS_STRING && s_.s) free(s_.s); num_ = number; type_ = YDS_NUMBER; }
+    double get_number() const { 
+        assert(type_ == YDS_NUMBER); 
+        return num_; 
+    }
+    void set_number(double number) { 
+        if (type_ == YDS_STRING && s_.s) 
+            free(s_.s); 
+        num_ = number; 
+        type_ = YDS_NUMBER; 
+    }
 
     const char* get_string() const { assert(type_ == YDS_STRING); return s_.s; }
     size_t get_string_len() const { assert(type_ == YDS_STRING); return s_.len; }

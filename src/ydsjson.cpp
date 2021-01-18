@@ -2,7 +2,7 @@
 
 #define ISDIGIT(ch)         ((ch) >= '0' && (ch) <= '9')
 #define ISDIGIT1TO9(ch)     (((ch) >= '1' && (ch) <= '9'))
-#define PUTC(ch)            do { *static_cast<char *>(context_.buff_push(sizeof(ch))) = (ch); } while (0)
+#define PUTC(ch)            do { *static_cast<char *>(context_.buff_push(sizeof(char))) = (ch); } while (0)
 
 /**
  * 解析空白部分
@@ -61,7 +61,6 @@ int YdsJson::parse_number() {
         value_->set_type(YDS_NULL);
         return YDS_PARSE_NUMBER_TOO_BIG;
     }
-    //value_->set_type(YDS_NUMBER);
     context_.set_context(p);
     return YDS_PARSE_OK;
 }
@@ -69,9 +68,48 @@ int YdsJson::parse_number() {
 /**
  * 解析字符串
 */
+
+const char* YdsJson::parse_hex4(const char* p, unsigned* u) {
+    int i;
+    *u = 0;
+    for (i = 0; i < 4; ++i) {
+        char ch = *p++;
+        *u <<= 4;
+        if      (ch >= '0' && ch <= '9') *u |= ch - '0';
+        else if (ch >= 'A' && ch <= 'F') *u |= ch - ('A' - 10);
+        else if (ch >= 'a' && ch <= 'f') *u |= ch - ('a' - 10);
+        else return nullptr;
+    }
+    return p;
+}
+
+void YdsJson::encode_utf8(unsigned u) {
+    if (u <= 0x7F) 
+        PUTC(u & 0xFF);
+    else if (u <= 0x7FF) {
+        PUTC(0xC0 | ((u >> 6) & 0xFF));
+        PUTC(0x80 | ( u       & 0x3F));
+    }
+    else if (u <= 0xFFFF) {
+        PUTC(0xE0 | ((u >> 12) & 0xFF));
+        PUTC(0x80 | ((u >>  6) & 0x3F));
+        PUTC(0x80 | ( u        & 0x3F));
+    }
+    else {
+        assert(u <= 0x10FFFF);
+        PUTC(0xF0 | ((u >> 18) & 0xFF));
+        PUTC(0x80 | ((u >> 12) & 0x3F));
+        PUTC(0x80 | ((u >>  6) & 0x3F));
+        PUTC(0x80 | ( u        & 0x3F));
+    }
+}
+
+#define STRING_ERROR(ret) do { context_.set_top(head); return ret; } while(0)
+
 int YdsJson::parse_string() {
     size_t head = context_.get_top(), len;
     const char* p = context_.get_context() + 1;
+    unsigned u, u2;
 
     while(true) {
         char ch = *p++;
@@ -92,19 +130,33 @@ int YdsJson::parse_string() {
                     case 'n':   PUTC('\n'); break;
                     case 'r':   PUTC('\r'); break;
                     case 't':   PUTC('\t'); break;
-                    default:    context_.set_top(head); 
-                                return YDS_PARSE_INVALID_STRING_ESCAPE;
+                    case 'u': 
+                        if (!(p = parse_hex4(p, &u)))
+                            STRING_ERROR(YDS_PARSE_INVALID_UNICODE_HEX);
+                        if (u >= 0xD800 && u <= 0xDBFF) {
+                            if (*p++ != '\\')
+                                STRING_ERROR(YDS_PARSE_INVALID_UNICODE_SURROGATE);
+                            if (*p++ != 'u')
+                                STRING_ERROR(YDS_PARSE_INVALID_UNICODE_SURROGATE);
+                            if (!(p = parse_hex4(p, &u2)))
+                                STRING_ERROR(YDS_PARSE_INVALID_UNICODE_HEX);
+                            if (u2 < 0xDC00 || u2 > 0xDFFF)
+                                STRING_ERROR(YDS_PARSE_INVALID_UNICODE_SURROGATE);
+                            u = (((u - 0xD800) << 10) | (u2 - 0xDC00)) + 0x10000;
+                        }
+                        encode_utf8(u);
+                        break;
+                    default:    
+                        STRING_ERROR(YDS_PARSE_INVALID_STRING_ESCAPE);
                 }
                 break;
 
             case '\0':
-                context_.set_top(head); 
-                return YDS_PARSE_MISS_QUOTATION_MARK;
+                STRING_ERROR(YDS_PARSE_MISS_QUOTATION_MARK);
             
             default:
                 if (static_cast<unsigned char>(ch) < 0x20) {
-                    context_.set_top(head); 
-                    return YDS_PARSE_INVALID_STRING_CHAR;
+                    STRING_ERROR(YDS_PARSE_INVALID_STRING_CHAR);
                 }
                 PUTC(ch);
         }
