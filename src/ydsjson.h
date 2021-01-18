@@ -16,7 +16,10 @@ enum {
     YDS_PARSE_EXPECT_VALUE,         /*全是空白*/
     YDS_PARSE_INVALID_VALUE,        /*无效的值*/
     YDS_PARSE_ROOT_NOT_SINGULAR,    /*解析之后还有未解析完的数据*/
-    YDS_PARSE_NUMBER_TOO_BIG
+    YDS_PARSE_NUMBER_TOO_BIG,       /*解析的数字数值太大*/
+    YDS_PARSE_INVALID_STRING_ESCAPE,/*字符串解析出错*/
+    YDS_PARSE_MISS_QUOTATION_MARK,   /*字符串不完整*/
+    YDS_PARSE_INVALID_STRING_CHAR    /*包含无效的字符*/
 };
 
 class YdsJson {
@@ -29,6 +32,7 @@ private:
     void parse_whitespace();
     int parse_literial(const char* literal, yds_type type);     /*解析字面量*/
     int parse_number();
+    int parse_string();
 
 private:
     YdsValue* value_;        /*保存解析结果的数据结构*/

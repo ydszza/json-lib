@@ -20,10 +20,17 @@ static int test_pass = 0;
 
 #define EXCEPT_EQ(except, actual) \
     EXCEPT_EQ_BASE((except)==(actual), except, actual)
+#define EXCEPT_EQ_STRING(except, actual, aclen) \
+    EXCEPT_EQ_BASE(strlen(except) == (aclen) && memcmp(except, actual, aclen) == 0, except, actual)
+#define EXCEPT_EQ_TRUE(actual) \
+    EXCEPT_EQ_BASE((actual) != 0, "true", "false")
+#define EXCEPT_EQ_FALSE(actual) \
+    EXCEPT_EQ_BASE((actual) == 0, "false", "true")
 
 static void test_parse_null() {
     YdsJson json_parse;
     YdsValue value;
+    value.set_boolean(false);
     EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "null"));
     EXCEPT_EQ(YDS_NULL, value.get_type());
 }
@@ -31,6 +38,7 @@ static void test_parse_null() {
 static void test_parse_true() {
     YdsValue value;
     YdsJson json_parse;
+    value.set_boolean(false);
     EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "true"));
     EXCEPT_EQ(YDS_TRUE, value.get_type());
 }
@@ -38,6 +46,7 @@ static void test_parse_true() {
 static void test_parse_false() {
     YdsValue value;
     YdsJson json_parse;
+    value.set_boolean(true);
     EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "false"));
     EXCEPT_EQ(YDS_FALSE, value.get_type());
 }
@@ -83,10 +92,27 @@ static void test_parse_number() {
     TEST_NUMBER(-1.7976931348623157e+308, "-1.7976931348623157e+308");
 }
 
+#define TEST_STRING(except, json) \
+    do { \
+        YdsValue value; \
+        YdsJson json_parse; \
+        EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, json)); \
+        EXCEPT_EQ(YDS_STRING, value.get_type()); \
+        EXCEPT_EQ_STRING(except, value.get_string(), value.get_string_len()); \
+    } while (0)
+
+static void test_parse_string() {
+    TEST_STRING("", "\"\"");
+    TEST_STRING("Hello", "\"Hello\"");
+    TEST_STRING("Hello\nWorld", "\"Hello\\nWorld\"");
+    TEST_STRING("\" \\ / \b \f \n \r \t", "\"\\\" \\\\ \\/ \\b \\f \\n \\r \\t\"");
+}
+
 #define TEST_ERROR(error, json) \
     do { \
         YdsValue value; \
         YdsJson json_parse; \
+        value.set_boolean(false); \
         EXCEPT_EQ(error, json_parse.parse(&value, json)); \
         EXCEPT_EQ(YDS_NULL, value.get_type()); \
     } while (0)
@@ -124,15 +150,73 @@ static void test_parse_number_too_big() {
     TEST_ERROR(YDS_PARSE_NUMBER_TOO_BIG, "-1E309");
 }
 
+static void test_parse_missing_quotation_mark() {
+    TEST_ERROR(YDS_PARSE_MISS_QUOTATION_MARK, "\"");
+    TEST_ERROR(YDS_PARSE_MISS_QUOTATION_MARK, "\"abc");
+}
+
+static void test_parse_invalid_string_escape() {
+    TEST_ERROR(YDS_PARSE_INVALID_STRING_ESCAPE, "\"\\v\"");
+    TEST_ERROR(YDS_PARSE_INVALID_STRING_ESCAPE, "\"\\'\"");
+    TEST_ERROR(YDS_PARSE_INVALID_STRING_ESCAPE, "\"\\0\"");
+    TEST_ERROR(YDS_PARSE_INVALID_STRING_ESCAPE, "\"\\x12\"");
+}
+
+static void test_parse_invalid_string_char() {
+    TEST_ERROR(YDS_PARSE_INVALID_STRING_CHAR, "\"\x01\"");
+    TEST_ERROR(YDS_PARSE_INVALID_STRING_CHAR, "\"\x1F\"");
+}
+
+static void test_access_null() {
+    YdsValue value;
+    value.set_string("a", 1);
+    value.set_type(YDS_NULL);
+    EXCEPT_EQ(YDS_NULL, value.get_type());
+}
+
+static void test_access_boolean() {
+    YdsValue value;
+    value.set_string("a", 1);
+    value.set_boolean(true);
+    EXCEPT_EQ_TRUE(value.get_boolean());
+    value.set_boolean(false);
+    EXCEPT_EQ_FALSE(value.get_boolean());
+}
+
+static void test_access_number() {
+    YdsValue value;
+    value.set_string("a", 1);
+    value.set_number(1234.5);
+    EXCEPT_EQ(1234.5, value.get_number());
+}
+
+static void test_access_string() {
+    YdsValue value;
+    value.set_string("", 0);
+    EXCEPT_EQ_STRING("", value.get_string(), value.get_string_len());
+    value.set_string("Hello", 5);
+    EXCEPT_EQ_STRING("Hello", value.get_string(), value.get_string_len());
+}
+
 static void test_parse() {
     test_parse_null();
     test_parse_true();
     test_parse_false();
     test_parse_number();
+    test_parse_string();
+
     test_parse_except_value();
     test_parse_invalid_value();
     test_parse_root_not_singular();
     test_parse_number_too_big();
+    test_parse_missing_quotation_mark();
+    test_parse_invalid_string_escape();
+    test_parse_invalid_string_char();
+
+    test_access_null();
+    test_access_boolean();
+    test_access_number();
+    test_access_string();
 }
 
 int main() {
