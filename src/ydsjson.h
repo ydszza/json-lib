@@ -21,7 +21,8 @@ enum {
     YDS_PARSE_MISS_QUOTATION_MARK,       /*字符串不完整*/
     YDS_PARSE_INVALID_STRING_CHAR,       /*包含无效的字符*/
     YDS_PARSE_INVALID_UNICODE_HEX,       /*无效的Unicode十六进制码*/
-    YDS_PARSE_INVALID_UNICODE_SURROGATE  /*无效的代理码*/
+    YDS_PARSE_INVALID_UNICODE_SURROGATE,  /*无效的代理码*/
+    YDS_PARSE_MISS_COMMA_OR_SQUARE_BRACKET,/*数组解析出错(逗号或方括号缺少)*/
 };
 
 class YdsJson {
@@ -37,6 +38,7 @@ private:
     int parse_string();
     const char* parse_hex4(const char* p, unsigned* u);
     void encode_utf8(unsigned u);
+    int parse_array();
 
 private:
     YdsValue* value_;        /*保存解析结果的数据结构*/

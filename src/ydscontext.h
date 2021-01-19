@@ -38,6 +38,8 @@ public:
         return stack_ + (top_ -= size);
     }
 
+    const char* read_byte() { return ++json_; }
+
 private:
     const char* json_;
     char* stack_;

@@ -163,6 +163,56 @@ int YdsJson::parse_string() {
     }
 }
 
+int YdsJson::parse_array() {
+    size_t i, size = 0;
+    int ret;
+    context_.read_byte();
+    parse_whitespace();
+    if (*context_.get_context() == ']') {
+        context_.read_byte();
+        //value_->set_type(YDS_ARRAY);
+        value_->set_array(nullptr, 0);
+        return YDS_PARSE_OK;
+    }
+
+    YdsValue* tmp = value_;
+    value_ = static_cast<YdsValue *>(malloc(sizeof(YdsValue)));
+    while (true) {
+        value_->init();
+        if ((ret = parse_value()) != YDS_PARSE_OK) 
+            break;
+        memcpy(context_.buff_push(sizeof(YdsValue)), value_, sizeof(YdsValue));
+        size++;
+
+        parse_whitespace();
+
+        if (*context_.get_context() == ',') {
+            context_.read_byte();
+            parse_whitespace();
+        }
+        else if (*context_.get_context() == ']') {
+            context_.read_byte();
+            //tmp->set_type(YDS_ARRAY);
+            //tmp->set_array_size(size);
+            //size *= sizeof(YdsValue);
+            tmp->set_array(static_cast<char *>(context_.buff_pop(size*sizeof(YdsValue))), size);
+            free(value_);
+            value_ = tmp;
+            return YDS_PARSE_OK;
+        }
+        else {
+            ret = YDS_PARSE_MISS_COMMA_OR_SQUARE_BRACKET;
+            break;
+        }
+    }
+    free(value_);
+    value_ = tmp;
+    for (int i = 0; i < size; i++) {
+       static_cast<YdsValue *>(context_.buff_pop(sizeof(YdsValue)))->destroy();
+    }
+    return ret;
+}
+
 /**
  * 根据类型解析数据
 */
@@ -184,6 +234,9 @@ int YdsJson::parse_value() {
         
         case '"':
             return parse_string();
+
+        case '[':
+            return parse_array();
 
         case '\0': 
             return YDS_PARSE_EXPECT_VALUE;
@@ -208,5 +261,6 @@ int YdsJson::parse(YdsValue* value, const char* json) {
             return YDS_PARSE_ROOT_NOT_SINGULAR;
         }
     }
+    assert(context_.get_top() == 0);
     return ret; //解析失败或解析到末尾
 }

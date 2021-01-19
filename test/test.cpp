@@ -5,59 +5,62 @@ static int main_ret = 0;
 static int test_count = 0;
 static int test_pass = 0;
 
-#define EXCEPT_EQ_BASE(equal, except, actual) \
+#define EXPECT_EQ_BASE(equal, expect, actual) \
     do { \
         test_count++; \
         if (equal) \
             test_pass++; \
         else {\
             std::cout << __FILE__ << ':' << __LINE__ \
-                      << ": except: " << except \
+                      << ": expect: " << expect \
                       << " actual: " << actual << std::endl; \
             main_ret = 1; \
         } \
     } while (0)
 
-#define EXCEPT_EQ(except, actual) \
-    EXCEPT_EQ_BASE((except)==(actual), except, actual)
-#define EXCEPT_EQ_STRING(except, actual, aclen) \
-    EXCEPT_EQ_BASE(sizeof(except)-1 == (aclen) && memcmp(except, actual, aclen) == 0, except, actual)
-#define EXCEPT_EQ_TRUE(actual) \
-    EXCEPT_EQ_BASE((actual) != 0, "true", "false")
-#define EXCEPT_EQ_FALSE(actual) \
-    EXCEPT_EQ_BASE((actual) == 0, "false", "true")
+#define EXPECT_EQ(expect, actual) \
+    EXPECT_EQ_BASE((expect)==(actual), expect, actual)
+#define EXPECT_EQ_STRING(expect, actual, aclen) \
+    EXPECT_EQ_BASE(sizeof(expect)-1 == (aclen) && memcmp(expect, actual, aclen) == 0, expect, actual)
+#define EXPECT_EQ_TRUE(actual) \
+    EXPECT_EQ_BASE((actual) != 0, "true", "false")
+#define EXPECT_EQ_FALSE(actual) \
+    EXPECT_EQ_BASE((actual) == 0, "false", "true")
+
+#define EXPECT_EQ_SIZE(expect, actual) \
+    EXPECT_EQ_BASE((expect)==(actual), expect, actual)
 
 static void test_parse_null() {
     YdsJson json_parse;
     YdsValue value;
     value.set_boolean(false);
-    EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "null"));
-    EXCEPT_EQ(YDS_NULL, value.get_type());
+    EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "null"));
+    EXPECT_EQ(YDS_NULL, value.get_type());
 }
 
 static void test_parse_true() {
     YdsValue value;
     YdsJson json_parse;
     value.set_boolean(false);
-    EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "true"));
-    EXCEPT_EQ(YDS_TRUE, value.get_type());
+    EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "true"));
+    EXPECT_EQ(YDS_TRUE, value.get_type());
 }
 
 static void test_parse_false() {
     YdsValue value;
     YdsJson json_parse;
     value.set_boolean(true);
-    EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "false"));
-    EXCEPT_EQ(YDS_FALSE, value.get_type());
+    EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "false"));
+    EXPECT_EQ(YDS_FALSE, value.get_type());
 }
 
-#define TEST_NUMBER(except, json) \
+#define TEST_NUMBER(EXPECT, json) \
     do { \
         YdsJson json_parse; \
         YdsValue value; \
-        EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, json)); \
-        EXCEPT_EQ(YDS_NUMBER, value.get_type()); \
-        EXCEPT_EQ(except, value.get_number()); \
+        EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, json)); \
+        EXPECT_EQ(YDS_NUMBER, value.get_type()); \
+        EXPECT_EQ(EXPECT, value.get_number()); \
     } while (0)
 
 static void test_parse_number() {
@@ -92,13 +95,13 @@ static void test_parse_number() {
     TEST_NUMBER(-1.7976931348623157e+308, "-1.7976931348623157e+308");
 }
 
-#define TEST_STRING(except, json) \
+#define TEST_STRING(EXPECT, json) \
     do { \
         YdsValue value; \
         YdsJson json_parse; \
-        EXCEPT_EQ(YDS_PARSE_OK, json_parse.parse(&value, json)); \
-        EXCEPT_EQ(YDS_STRING, value.get_type()); \
-        EXCEPT_EQ_STRING(except, value.get_string(), value.get_string_len()); \
+        EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, json)); \
+        EXPECT_EQ(YDS_STRING, value.get_type()); \
+        EXPECT_EQ_STRING(EXPECT, value.get_string(), value.get_string_len()); \
     } while (0)
 
 static void test_parse_string() {
@@ -114,16 +117,56 @@ static void test_parse_string() {
     TEST_STRING("\xF0\x9D\x84\x9E", "\"\\ud834\\udd1e\"");  /* G clef sign U+1D11E */
 }
 
+static void test_parse_array() {
+    YdsValue value;
+    YdsJson json_parse;
+    EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "[ ]"));
+    EXPECT_EQ(YDS_ARRAY, value.get_type());
+    EXPECT_EQ_SIZE(0, value.get_array_size());
+    //std::cout << 4 << std::endl;
+
+    value.set_type(YDS_NULL);
+    EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "[ null , false , true , 123 , \"abc\" ]"));
+    EXPECT_EQ(YDS_ARRAY, value.get_type());
+    EXPECT_EQ_SIZE(5, value.get_array_size());
+    EXPECT_EQ(YDS_NULL,   value.get_array_element(0)->get_type());
+    EXPECT_EQ(YDS_FALSE,  value.get_array_element(1)->get_type());
+    EXPECT_EQ(YDS_TRUE,   value.get_array_element(2)->get_type());
+    EXPECT_EQ(YDS_NUMBER, value.get_array_element(3)->get_type());
+    EXPECT_EQ(YDS_STRING, value.get_array_element(4)->get_type());
+    EXPECT_EQ(123.0, value.get_array_element(3)->get_number());
+    EXPECT_EQ_STRING("abc", value.get_array_element(4)->get_string(), 
+                     value.get_array_element(4)->get_string_len());
+
+    value.set_type(YDS_NULL);
+    EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, "[ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ]"));
+    EXPECT_EQ(YDS_ARRAY, value.get_type());
+    EXPECT_EQ_SIZE(4, value.get_array_size());
+    for (int i = 0; i < 4; i++) {
+        //std::cout << "i = " << i << " ";
+        YdsValue* a = value.get_array_element(i);
+        EXPECT_EQ(YDS_ARRAY, a->get_type());
+        EXPECT_EQ_SIZE(i, a->get_array_size());
+        for (int j = 0; j < i; j++) {
+            //std::cout << "j = " << j << " ";
+            YdsValue* e = a->get_array_element(j);
+            EXPECT_EQ(YDS_NUMBER, e->get_type());
+            EXPECT_EQ((double)j,e->get_number());
+        }
+        //std::cout << std::endl;
+    }
+}
+
 #define TEST_ERROR(error, json) \
     do { \
         YdsValue value; \
         YdsJson json_parse; \
         value.set_boolean(false); \
-        EXCEPT_EQ(error, json_parse.parse(&value, json)); \
-        EXCEPT_EQ(YDS_NULL, value.get_type()); \
+        EXPECT_EQ(error, json_parse.parse(&value, json)); \
+        EXPECT_EQ(YDS_NULL, value.get_type()); \
     } while (0)
 
-static void test_parse_except_value() {
+static void test_parse_EXPECT_value() {
     TEST_ERROR(YDS_PARSE_EXPECT_VALUE, "");
     TEST_ERROR(YDS_PARSE_EXPECT_VALUE, " ");
 }
@@ -140,6 +183,10 @@ static void test_parse_invalid_value() {
     TEST_ERROR(YDS_PARSE_INVALID_VALUE, "inf");
     TEST_ERROR(YDS_PARSE_INVALID_VALUE, "NAN");
     TEST_ERROR(YDS_PARSE_INVALID_VALUE, "nan");
+
+        /* invalid value in array */
+    TEST_ERROR(YDS_PARSE_INVALID_VALUE, "[1,]");
+    TEST_ERROR(YDS_PARSE_INVALID_VALUE, "[\"a\", nul]");
 }
 
 static void test_parse_root_not_singular() {
@@ -198,14 +245,22 @@ static void test_parse_invalid_unicode_surrogate() {
     TEST_ERROR(YDS_PARSE_INVALID_UNICODE_SURROGATE, "\"\\uD800\\uE000\"");
 }
 
+static void test_parse_miss_comma_or_square_bracket() {
+    TEST_ERROR(YDS_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1");
+    TEST_ERROR(YDS_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1}");
+    TEST_ERROR(YDS_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1 2");
+    TEST_ERROR(YDS_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[[]");
+}
+
 static void test_parse() {
     test_parse_null();
     test_parse_true();
     test_parse_false();
     test_parse_number();
     test_parse_string();
+    test_parse_array();
 
-    test_parse_except_value();
+    test_parse_EXPECT_value();
     test_parse_invalid_value();
     test_parse_root_not_singular();
     test_parse_number_too_big();
@@ -214,37 +269,38 @@ static void test_parse() {
     test_parse_invalid_string_char();
     test_parse_invalid_unicode_hex();
     test_parse_invalid_unicode_surrogate();
+    test_parse_miss_comma_or_square_bracket();
 }
 
 static void test_access_null() {
     YdsValue value;
     value.set_string("a", 1);
     value.set_type(YDS_NULL);
-    EXCEPT_EQ(YDS_NULL, value.get_type());
+    EXPECT_EQ(YDS_NULL, value.get_type());
 }
 
 static void test_access_boolean() {
     YdsValue value;
     value.set_string("a", 1);
     value.set_boolean(true);
-    EXCEPT_EQ_TRUE(value.get_boolean());
+    EXPECT_EQ_TRUE(value.get_boolean());
     value.set_boolean(false);
-    EXCEPT_EQ_FALSE(value.get_boolean());
+    EXPECT_EQ_FALSE(value.get_boolean());
 }
 
 static void test_access_number() {
     YdsValue value;
     value.set_string("a", 1);
     value.set_number(1234.5);
-    EXCEPT_EQ(1234.5, value.get_number());
+    EXPECT_EQ(1234.5, value.get_number());
 }
 
 static void test_access_string() {
     YdsValue value;
     value.set_string("", 0);
-    EXCEPT_EQ_STRING("", value.get_string(), value.get_string_len());
+    EXPECT_EQ_STRING("", value.get_string(), value.get_string_len());
     value.set_string("Hello", 5);
-    EXCEPT_EQ_STRING("Hello", value.get_string(), value.get_string_len());
+    EXPECT_EQ_STRING("Hello", value.get_string(), value.get_string_len());
 }
 
 static void test_access() {
