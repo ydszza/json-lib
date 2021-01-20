@@ -19,7 +19,6 @@ typedef enum {
     YDS_OBJECT
 } yds_type;
 
-
 /**
  * 保存数据的结构体
 */
@@ -65,8 +64,24 @@ public:
         type_ = YDS_ARRAY;
     }
     //void set_array_size(size_t size) {}
-    YdsValue* get_array_element(size_t index) const { return &a_.e[index]; }
+    YdsValue* get_array_element(size_t index) const { assert(type_ == YDS_ARRAY); return &a_.e[index]; }
     size_t get_array_size() const { assert(type_ == YDS_ARRAY); return a_.size; }
+
+    void set_object(char* o, size_t len, size_t size) { 
+        destroy();
+        if (size) {
+            o_.m = static_cast<YdsMember *>(malloc(len));
+            memcpy(o_.m, o, size * sizeof(YdsValue));
+        }
+        else o_.m = nullptr;
+
+        o_.size = size;
+        type_ = YDS_OBJECT;
+    }
+    const char* get_object_key(size_t index) const { assert(type_ == YDS_OBJECT); return o_.m[index].key; }
+    size_t get_object_key_len(size_t index) const { assert(type_ == YDS_OBJECT); return o_.m[index].key_len; }
+    YdsValue* get_object_value(size_t index) const { assert(type_ == YDS_OBJECT); return o_.m[index].v; }
+    size_t get_object_size() const { assert(type_ == YDS_OBJECT); return o_.size; }
 
     void destroy() {
         switch (type_) {
@@ -88,13 +103,22 @@ public:
     }
 
 private:
+    struct YdsMember;
     /*使用联合体节省内存*/
     union {
         double num_;/*数字*/
         struct { char* s; size_t len; } s_;/*字符串*/
-        struct {YdsValue* e; size_t size; } a_; /*数组*/
+        struct { YdsValue* e; size_t size; } a_; /*数组*/
+        struct { YdsMember* m; size_t size; }o_;
+
     };
     yds_type type_;
+};
+
+struct YdsMember {
+    char* key;
+    size_t key_len;
+    YdsValue v;//?
 };
 
 #endif // !__YDSVALUE_H__

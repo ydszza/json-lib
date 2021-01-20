@@ -157,6 +157,17 @@ static void test_parse_array() {
     }
 }
 
+static void test_parse_object() {
+    YdsJson json_parse;
+    YdsValue value;
+    EXPECT_EQ(YDS_PARSE_OK, json_parse.parse(&value, " { } "));
+    EXPECT_EQ(YDS_OBJECT, value.get_type());
+    EXPECT_EQ_SIZE(0, value.get_object_size());
+
+    //value.set_type((YDS_NULL));
+
+}
+
 #define TEST_ERROR(error, json) \
     do { \
         YdsValue value; \

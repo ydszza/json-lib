@@ -35,3 +35,4 @@ tutorial/*
 .vscode/*
 build/*
 ydsjson_test
+code/*
