@@ -169,6 +169,11 @@ static void test_parse_object() {
         "\"a\" : [ 1, 2, 3 ],"
         "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 }"
         " } ", value));
+
+    std::string str;
+    json.stringify(value, str);
+    std::cout << str << std::endl;
+
     EXPECT_EQ(OBJECT_VALUE, value->get_type());
     EXPECT_EQ(7, value->get_object().size());
     EXPECT_EQ(NULL_VALUE, value->get_object()["n"]->get_type());

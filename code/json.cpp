@@ -1,6 +1,8 @@
 #include "json.h"
 
-
+/****************************************************************
+ * 解析json字符串对象
+ * *************************************************************/
 void Json::parse_whitespace() {
     while (*json_ == ' ' || *json_ == '\n' || *json_ == '\r' || *json_ == '\t') 
         json_++;
@@ -282,4 +284,73 @@ int Json::parse(const char* json, Value::ValuePtr& value) {
         }
     }
     return ret; //解析失败或解析到末尾
+}
+
+
+/****************************************************************
+ * json对象字符串化
+ * *************************************************************/
+void Json::stringify_string(Value::ValuePtr& value, std::string& str) {
+    static const char hex_digits[] = "0123456789ABCDEF";
+    str += '"';
+    std::string& s = value->get_string();
+    for (auto c : s) {
+        switch (c) {
+            case '\"': str += "\\\""; break;
+            case '\\': str += "\\"; break;
+            case '\b': str += "\\b"; break;
+            case '\f': str += "\\f"; break;
+            case '\n': str += "\\n"; break;
+            case '\r': str += "\\r"; break;
+            case '\t': str += "\\t"; break;
+            default:
+                if (c < 0x20) {
+                    str += "\\u00";
+                    str += hex_digits[c >> 4];
+                    str += hex_digits[c & 15];
+                }
+                else str += c;
+        }
+    }
+    str += '"';
+}
+
+void Json::stringify_value(Value::ValuePtr& value, std::string& str, size_t level) {
+    switch(value->get_type()) {
+        case NULL_VALUE:    str += "null"; break;
+        case TRUE_VALUE:    str += "true"; break;
+        case FALSE_VALUE:   str += "false"; break;
+        case NUMBER_VALUE:  str += std::to_string(value->get_number()); break;
+        case STRING_VALUE:  stringify_string(value, str); break;
+        case ARRAY_VALUE:   { 
+            str += "[ ";
+            auto& array = value->get_array();
+            for (size_t i = 0; i < array.size(); ++i) {
+                if (i) str += ", "; 
+                stringify(array[i], str);
+            }
+            str += " ]";
+            break;
+        }
+        case OBJECT_VALUE:    {
+            for (int i = level; i > 0; --i) str += '\t';
+            str += "{ \n";
+            auto& obj = value->get_object();
+            for (auto o = obj.begin(); o != obj.end(); ++o) {
+                if (o != obj.begin()) str += ",\n";
+                for (int i = level; i >= 0; --i) str += '\t';
+                str += ("\"" + o->first + "\" : ");
+                stringify_value(o->second, str, level + 1);
+            }
+            str += '\n';
+            for (int i = level; i > 0; --i) str += '\t';
+            str += "}";
+            break;
+        }
+        default: assert(0 && "Invalid type");
+    }
+}
+
+inline void Json::stringify(Value::ValuePtr& value, std::string& str) {
+    stringify_value(value, str, 0);
 }

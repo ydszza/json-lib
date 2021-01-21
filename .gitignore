@@ -37,3 +37,4 @@ build/*
 ydsjson_test
 code/build/*
 code/json_test
+code/value_test

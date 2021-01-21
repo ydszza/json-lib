@@ -34,6 +34,7 @@ class Json {
 public:
     Json() : value_(std::make_shared<Value>()) {}
     int parse(const char* json, Value::ValuePtr& value);
+    void stringify(Value::ValuePtr& value, std::string& str);
 
 private:
     int parse_value();
@@ -49,6 +50,9 @@ private:
 
     bool is_digit(char ch) { return ch >= '0' && ch <= '9'; }
     bool is_digit_1to9(char ch) { return ch >= '1' && ch <= '9'; }
+
+    void stringify_string(Value::ValuePtr& value, std::string& str);
+    void stringify_value(Value::ValuePtr& value, std::string& str, size_t level);
 
 private:
     const char* json_;
