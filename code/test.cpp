@@ -152,18 +152,50 @@ static void test_parse_array() {
     }
 }
 
-#if 0
 static void test_parse_object() {
-    YdsJson json_parse;
-    YdsValue::ValuePtr value;
-    EXPECT_EQ(PARSE_OK, json_parse.parse(&value, " { } "));
-    EXPECT_EQ(OBJECT, value->get_type());
-    EXPECT_EQ_SIZE(0, value->get_object_size());
+    Json json;
+    Value::ValuePtr value;
+    EXPECT_EQ(PARSE_OK, json.parse(" { } ", value));
+    EXPECT_EQ(OBJECT_VALUE, value->get_type());
+    EXPECT_EQ(0, value->get_object().size());
 
-    //value->set_type((NULL));
-
+    EXPECT_EQ(PARSE_OK, json.parse(
+        " { "
+        "\"n\" : null , "
+        "\"f\" : false , "
+        "\"t\" : true , "
+        "\"i\" : 123 , "
+        "\"s\" : \"abc\", "
+        "\"a\" : [ 1, 2, 3 ],"
+        "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 }"
+        " } ", value));
+    EXPECT_EQ(OBJECT_VALUE, value->get_type());
+    EXPECT_EQ(7, value->get_object().size());
+    EXPECT_EQ(NULL_VALUE, value->get_object()["n"]->get_type());
+    EXPECT_EQ(FALSE_VALUE, value->get_object()["f"]->get_type());
+    EXPECT_EQ(TRUE_VALUE, value->get_object()["t"]->get_type());
+    EXPECT_EQ(NUMBER_VALUE, value->get_object()["i"]->get_type());
+    EXPECT_EQ(123.0, value->get_object()["i"]->get_number());
+    EXPECT_EQ(STRING_VALUE, value->get_object()["s"]->get_type());
+    EXPECT_EQ("abc", value->get_object()["s"]->get_string());
+    EXPECT_EQ(ARRAY_VALUE, value->get_object()["a"]->get_type());
+    EXPECT_EQ(3, value->get_object()["a"]->get_array().size());
+    for (int i = 0; i < 3; i++) {
+        Value::ValuePtr e = value->get_object()["a"]->get_array()[i];
+        EXPECT_EQ(NUMBER_VALUE, e->get_type());
+        EXPECT_EQ(i + 1.0, e->get_number());
+    }
+    EXPECT_EQ(OBJECT_VALUE, value->get_object()["o"]->get_type());
+    {
+        Value::ValuePtr o = value->get_object()["o"];
+        EXPECT_EQ(OBJECT_VALUE, o->get_type());
+        for (int i = 0; i < 3; i++) {
+            Value::ValuePtr ov = o->get_object()[std::to_string(i+1)];
+            EXPECT_EQ(NUMBER_VALUE, ov->get_type());
+            EXPECT_EQ_TRUE(i+1.0 == ov->get_number());
+        }
+    }
 }
-#endif
 
 /*******************************
  * 测试错误数据
@@ -257,14 +289,35 @@ static void test_parse_invalid_unicode_surrogate() {
     TEST_ERROR(PARSE_INVALID_UNICODE_SURROGATE, "\"\\uD800\\uE000\"");
 }
 
-#if 0
 static void test_parse_miss_comma_or_square_bracket() {
     TEST_ERROR(PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1");
     TEST_ERROR(PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1}");
     TEST_ERROR(PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1 2");
     TEST_ERROR(PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[[]");
 }
-#endif
+
+static void test_parse_miss_key() {
+    TEST_ERROR(PARSE_MISS_KEY, "{:1,");
+    TEST_ERROR(PARSE_MISS_KEY, "{1:1,");
+    TEST_ERROR(PARSE_MISS_KEY, "{true:1,");
+    TEST_ERROR(PARSE_MISS_KEY, "{false:1,");
+    TEST_ERROR(PARSE_MISS_KEY, "{null:1,");
+    TEST_ERROR(PARSE_MISS_KEY, "{[]:1,");
+    TEST_ERROR(PARSE_MISS_KEY, "{{}:1,");
+    TEST_ERROR(PARSE_MISS_KEY, "{\"a\":1,");
+}
+
+static void test_parse_miss_colon() {
+    TEST_ERROR(PARSE_MISS_COLON, "{\"a\"}");
+    TEST_ERROR(PARSE_MISS_COLON, "{\"a\",\"b\"}");
+}
+
+static void test_parse_miss_comma_or_curly_bracket() {
+    TEST_ERROR(PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":1");
+    TEST_ERROR(PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":1]");
+    TEST_ERROR(PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":1 \"b\"");
+    TEST_ERROR(PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":{}");
+}
 
 static void test_parse() {
     test_parse_null();
@@ -273,6 +326,7 @@ static void test_parse() {
     test_parse_number();
     test_parse_string();
     test_parse_array();
+    test_parse_object();
 
     test_parse_expect_value();
     test_parse_invalid_value();
@@ -283,7 +337,10 @@ static void test_parse() {
     test_parse_invalid_string_char();
     test_parse_invalid_unicode_hex();
     test_parse_invalid_unicode_surrogate();
-    //test_parse_miss_comma_or_square_bracket();
+    test_parse_miss_comma_or_square_bracket();
+    test_parse_miss_key();
+    test_parse_miss_colon();
+    test_parse_miss_comma_or_curly_bracket();
 }
 
 

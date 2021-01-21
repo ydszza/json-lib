@@ -174,8 +174,7 @@ int Json::parse_array() {
         }
         else {
             ret = PARSE_MISS_COMMA_OR_SQUARE_BRACKET;
-            value_ = tmp;
-            return PARSE_OK;
+            break;
         }
     }
     value_ = tmp;
@@ -183,9 +182,60 @@ int Json::parse_array() {
 }
 
 int Json::parse_object() {
-    return PARSE_OK;
-}
+    json_++;
 
+    //空对象
+    std::unordered_map<std::string, Value::ValuePtr> obj;
+    parse_whitespace();
+    if (*json_ == '}') {
+        json_++;
+        value_->set_object(obj);
+        return PARSE_OK;
+    }
+
+    int ret;
+    Value::ValuePtr tmp = value_;
+    while (true) {
+        value_ = std::make_shared<Value>();
+        /*解析key, 先判断在解析*/
+        if (*json_ != '"') {
+            ret = PARSE_MISS_KEY;
+            break;
+        }
+        std::string str;
+        if ((ret = parse_string_raw(str)) != PARSE_OK)
+            break;
+        parse_whitespace();
+        if (*json_ != ':') {
+            ret = PARSE_MISS_COLON;
+            break;
+        }
+        json_++;
+        /*解析键对应的值*/
+        parse_whitespace();
+        if ((ret = parse_value()) != PARSE_OK)
+            break;
+        obj[str] = value_;
+
+        parse_whitespace();
+        if (*json_ == ',') {
+            json_++;
+            parse_whitespace();
+        }
+        else if (*json_ == '}') {
+            json_++;
+            tmp->set_object(obj);
+            value_ = tmp;
+            return PARSE_OK;
+        }
+        else {
+            ret = PARSE_MISS_COMMA_OR_CURLY_BRACKET;
+            break;
+        }
+    }
+    value_ = tmp;
+    return ret;
+}
 
 int Json::parse_value() {
     const char* p = json_;
