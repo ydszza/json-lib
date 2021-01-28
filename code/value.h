@@ -23,7 +23,7 @@ class Value {
 public:
     typedef std::shared_ptr<Value> ValuePtr;
     Value() : type_(NULL_VALUE) {}
-    ~Value() {}
+    ~Value() { clear(); }
 
     value_type get_type() const { return type_; }
     void set_type(value_type type) { type_ = type; }//此调用不会销毁存储的数据
@@ -35,23 +35,34 @@ public:
     void set_number(double value) { clear(); num_ = value; type_ = NUMBER_VALUE; }
     double get_number() const { assert(type_ == NUMBER_VALUE); return num_; }
 
-    void set_string(const char *value) { clear(); str_ = value; type_ = STRING_VALUE; }
+    void set_string(const char *value) { clear(); new(&str_) std::string(); str_ = value; type_ = STRING_VALUE; }
     std::string& get_string() { assert(type_ == STRING_VALUE); return str_; }
 
-    void set_array(std::vector<ValuePtr>& values) { clear(); array_ = values; type_ = ARRAY_VALUE; }
+    void set_array(std::vector<ValuePtr>& values) { clear(); new(&array_) std::vector<ValuePtr>(values); array_ = values; type_ = ARRAY_VALUE; }
     std::vector<ValuePtr>& get_array() { assert(type_ == ARRAY_VALUE); return array_; }
 
-    void set_object(std::unordered_map<std::string, ValuePtr>& values) { clear(); obj_ = values; type_ = OBJECT_VALUE; }
+    void set_object(std::unordered_map<std::string, ValuePtr>& values) { clear(); new(&obj_) std::unordered_map<std::string, ValuePtr>(values); obj_ = values; type_ = OBJECT_VALUE; }
     std::unordered_map<std::string, ValuePtr>& get_object() { assert(type_ == OBJECT_VALUE); return obj_; }
 
 private:    
-    void clear(){ str_.clear(); array_.clear(); obj_.clear(); type_ = NULL_VALUE; }
+    //void clear(){ str_.clear(); array_.clear(); obj_.clear(); type_ = NULL_VALUE; }
+    void clear() {
+        switch(type_) {
+            case STRING_VALUE: str_.~basic_string(); break;
+            case ARRAY_VALUE:  array_.~vector(); break;
+            case OBJECT_VALUE: obj_.~unordered_map<std::string, ValuePtr>(); break;
+            default:break;
+        }
+        type_ = NULL_VALUE;
+    }
 
 private:
-    double num_;
-    std::string str_;
-    std::vector<ValuePtr> array_;
-    std::unordered_map<std::string, ValuePtr> obj_;
+    union {
+        double num_;
+        std::string str_;
+        std::vector<ValuePtr> array_;
+        std::unordered_map<std::string, ValuePtr> obj_;
+    };
     value_type type_;
 };
 

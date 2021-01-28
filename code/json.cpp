@@ -306,8 +306,8 @@ void Json::stringify_string(Value::ValuePtr& value, std::string& str) {
             default:
                 if (c < 0x20) {
                     str += "\\u00";
-                    str += hex_digits[c >> 4];
-                    str += hex_digits[c & 15];
+                    str += hex_digits[c >> 4];//取高四位值
+                    str += hex_digits[c & 15];//取低四位
                 }
                 else str += c;
         }
